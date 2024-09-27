@@ -1,0 +1,573 @@
+Function noMoreFreeMemory() Which Returns Nothing Is External;
+Function segmentationFault() Which Returns Nothing Is External;
+Function
+printString(PointerToCharacter string) Which Returns Nothing Is External;
+Function clearScreen() Which Returns Nothing Is External;
+Function getLengthOfTheInput() Which Returns Integer16 Is External;
+Function
+getCharacterOfTheInput(Integer16 index) Which Returns Character Is External;
+
+Integer32 NDEBUG : = 1;
+
+Structure TreeNode Consists Of {
+  Character character;
+  Integer16 frequencyOfCharacter;
+  PointerToTreeNode leftChild, rightChild;
+  Character code[16];
+}
+EndStructure;
+
+InstantiateStructure TreeNode treeNodes[64];
+Integer16 isTreeNodeUsed[64];
+
+Function isTreeNodeWithinBounds(
+    PointerToTreeNode treeNode) Which Returns Integer32 Does {
+  Return AddressOf(treeNodes[0]) <= treeNode <= AddressOf(treeNodes[64 - 1]) and
+      mod(treeNode - AddressOf(treeNodes[0]), SizeOf(TreeNode)) = 0;
+}
+EndFunction;
+
+Function
+convertIntegerToString(PointerToCharacter string,
+                       Integer32 integer) Which Returns Nothing Is Declared;
+Function strcat(PointerToCharacter dest,
+                PointerToCharacter src) Which Returns Nothing Is Declared;
+Function strlen(PointerToCharacter string) Which Returns Integer32 Is Declared;
+
+Function newTreeNode() Which Returns PointerToTreeNode Does {
+  Integer16 i : = 0;
+  While i < 64 Loop {
+    If not(isTreeNodeUsed[i]) Then {
+      treeNodes[i].character : = 0;
+      treeNodes[i].leftChild : = treeNodes[i].rightChild
+          : = PointerToTreeNode(0);
+      treeNodes[i].code[0] : = 0;
+      treeNodes[i].frequencyOfCharacter : = 0;
+      isTreeNodeUsed[i] : = 1;
+      If NDEBUG = 0 Then {
+        Character stringToBePrinted[64] : = {0};
+        strcat(AddressOf(stringToBePrinted[0]),
+               "NDEBUG: Allocating the TreeNode #");
+        convertIntegerToString(AddressOf(stringToBePrinted[0]) +
+                                   strlen(AddressOf(stringToBePrinted[0])),
+                               i);
+        strcat(AddressOf(stringToBePrinted[0]), "\n");
+        printString(AddressOf(stringToBePrinted[0]));
+      }
+      EndIf;
+      Return AddressOf(treeNodes[i]);
+    }
+    EndIf;
+    i += 1;
+  }
+  EndWhile;
+  noMoreFreeMemory();
+}
+EndFunction;
+
+Function freeTreeNode(PointerToTreeNode treeNode) Which Returns Nothing Does {
+  If not(isTreeNodeWithinBounds(treeNode)) Then { segmentationFault(); }
+  EndIf;
+  If NDEBUG = 0 Then {
+    Character stringToBePrinted[64] : = {0};
+    strcat(AddressOf(stringToBePrinted[0]), "NDEBUG: Freeing the TreeNode #");
+    convertIntegerToString(AddressOf(stringToBePrinted[0]) +
+                               strlen(AddressOf(stringToBePrinted[0])),
+                           (treeNode - AddressOf(treeNodes[0])) /
+                               SizeOf(TreeNode));
+    strcat(AddressOf(stringToBePrinted[0]), "\n");
+    printString(AddressOf(stringToBePrinted[0]));
+  }
+  EndIf;
+  isTreeNodeUsed[(treeNode - AddressOf(treeNodes[0])) / SizeOf(TreeNode)] : = 0;
+}
+EndFunction;
+
+Function strlen(PointerToCharacter str) Which Returns Integer32 Does {
+  Integer32 length : = 0;
+  While ValueAt(str + length) Loop { length += 1; }
+  EndWhile;
+  Return length;
+}
+EndFunction;
+
+Function strcpy(PointerToCharacter dest,
+                PointerToCharacter src) Which Returns Nothing Does {
+  While ValueAt(src) Loop {
+    ValueAt(dest) : = ValueAt(src);
+    dest += 1;
+    src += 1;
+  }
+  EndWhile;
+  ValueAt(dest) : = 0;
+}
+EndFunction;
+
+Function strcat(PointerToCharacter dest,
+                PointerToCharacter src) Which Returns Nothing Does {
+  strcpy(dest + strlen(dest), src);
+}
+EndFunction;
+
+Function reverseString(PointerToCharacter string) Which Returns Nothing Does {
+  PointerToCharacter pointerToLastCharacter : = string + strlen(string) - 1;
+  While pointerToLastCharacter - string > 0 Loop {
+    Character tmp : = ValueAt(string);
+    ValueAt(string) : = ValueAt(pointerToLastCharacter);
+    ValueAt(pointerToLastCharacter) : = tmp;
+    string += 1;
+    pointerToLastCharacter -= 1;
+  }
+  EndWhile;
+}
+EndFunction;
+
+Function convertIntegerToString(PointerToCharacter string,
+                                Integer32 number) Which Returns Nothing Does {
+  Integer32 isNumberNegative : = 0;
+  If number < 0 Then {
+  number:
+    = -number;
+  isNumberNegative:
+    = 1;
+  }
+  EndIf;
+  Integer32 i : = 0;
+  While number >= 10 Loop {
+    ValueAt(string + i) : = '0' + mod(number, 10);
+    number /= 10;
+    i += 1;
+  }
+  EndWhile;
+  ValueAt(string + i) : = '0' + number;
+  i += 1;
+  If isNumberNegative Then {
+    ValueAt(string + i) : = '-';
+    i += 1;
+  }
+  EndIf;
+  ValueAt(string + i) : = 0;
+  reverseString(string);
+}
+EndFunction;
+
+Function convertDecimalToString(PointerToCharacter string,
+                                Decimal32 number) Which Returns Nothing Does {
+  convertIntegerToString(string, number);
+  number -= Integer32(number);
+  If number < 0 Then { number *= -1; }
+  EndIf;
+  If number = 0 Then { Return; }
+  EndIf;
+  strcat(string, ".");
+  Integer16 numberOfDecimals : = 0;
+  While numberOfDecimals<3 and number> 0 Loop {
+    numberOfDecimals += 1;
+    number *= 10;
+    Character stringWithTheNewDigit[2];
+    stringWithTheNewDigit[0] : = stringWithTheNewDigit[1] : = 0;
+    stringWithTheNewDigit[0] : = '0' + number;
+    strcat(string, AddressOf(stringWithTheNewDigit[0]));
+    number -= Integer32(number);
+  }
+  EndWhile;
+}
+EndFunction;
+
+PointerToCharacter mapOfCodes[256];
+
+Function assignCode(PointerToCharacter currentCode,
+                    PointerToTreeNode treeNode) Which Returns Nothing Does {
+  If NDEBUG = 0 Then {
+    Character stringToBePrinted[64] : = {0};
+    strcat(AddressOf(stringToBePrinted[0]), "NDEBUG: Assigning the code \"");
+    strcat(AddressOf(stringToBePrinted[0]), currentCode);
+    strcat(AddressOf(stringToBePrinted[0]), "\" to the TreeNode #");
+    convertIntegerToString(AddressOf(stringToBePrinted[0]) +
+                               strlen(AddressOf(stringToBePrinted[0])),
+                           (treeNode - AddressOf(treeNodes[0])) /
+                               SizeOf(TreeNode));
+    strcat(AddressOf(stringToBePrinted[0]), ".\n");
+    printString(AddressOf(stringToBePrinted[0]));
+
+    stringToBePrinted[0] : = 0;
+    strcat(AddressOf(stringToBePrinted[0]),
+           "NDEBUG: Its left child is the TreeNode #");
+    If treeNode->leftChild Then {
+      convertIntegerToString(AddressOf(stringToBePrinted[0]) +
+                                 strlen(AddressOf(stringToBePrinted[0])),
+                             (treeNode->leftChild - AddressOf(treeNodes[0])) /
+                                 SizeOf(TreeNode));
+    }
+    Else { strcat(AddressOf(stringToBePrinted[0]), "null"); }
+    EndIf;
+    strcat(AddressOf(stringToBePrinted[0]), ".\n");
+    printString(AddressOf(stringToBePrinted[0]));
+
+    stringToBePrinted[0] : = 0;
+    strcat(AddressOf(stringToBePrinted[0]),
+           "NDEBUG: Its right child is the TreeNode #");
+    If treeNode->leftChild Then {
+      convertIntegerToString(AddressOf(stringToBePrinted[0]) +
+                                 strlen(AddressOf(stringToBePrinted[0])),
+                             (treeNode->rightChild - AddressOf(treeNodes[0])) /
+                                 SizeOf(TreeNode));
+    }
+    Else { strcat(AddressOf(stringToBePrinted[0]), "null"); }
+    EndIf;
+    strcat(AddressOf(stringToBePrinted[0]), ".\n");
+    printString(AddressOf(stringToBePrinted[0]));
+  }
+  EndIf;
+
+  If not(isTreeNodeWithinBounds(treeNode)) Then { segmentationFault(); }
+  EndIf;
+
+  strcpy(AddressOf(treeNode->code[0]), currentCode);
+
+  Character leftCode[16] : = {0}, rightCode[16] : = {0};
+
+  strcpy(AddressOf(leftCode[0]), currentCode);
+  strcat(AddressOf(leftCode[0]), "0");
+  strcpy(AddressOf(rightCode[0]), currentCode);
+  strcat(AddressOf(rightCode[0]), "1");
+
+  If treeNode->leftChild Then {
+    assignCode(AddressOf(leftCode[0]), treeNode->leftChild);
+  }
+  EndIf;
+  If treeNode->rightChild Then {
+    assignCode(AddressOf(rightCode[0]), treeNode->rightChild);
+  }
+  EndIf;
+
+  If treeNode->character Then {
+    mapOfCodes[treeNode->character] : = AddressOf(treeNode->code[0]);
+    Character codeToPrint[32] : = {0};
+    codeToPrint[0] : = '\'';
+    codeToPrint[1] : = treeNode->character;
+    codeToPrint[2] : = '\'';
+    codeToPrint[3] : = '=';
+    codeToPrint[4] : = '>';
+    codeToPrint[5] : = 0;
+    strcat(AddressOf(codeToPrint[0]), AddressOf(treeNode->code[0]));
+    strcat(AddressOf(codeToPrint[0]), "\n");
+    printString(AddressOf(codeToPrint[0]));
+  }
+  EndIf;
+}
+EndFunction;
+
+Function freeUpTheTree(PointerToTreeNode tree) Which Returns Nothing Does {
+  If tree->leftChild Then {
+    freeUpTheTree(tree->leftChild); // Calling `freeTreeNode` here instead of
+                                    // `freeUpTheTree` causes a memory leak.
+  }
+  EndIf;
+  If tree->rightChild Then { freeUpTheTree(tree->rightChild); }
+  EndIf;
+  freeTreeNode(tree);
+}
+EndFunction;
+
+Decimal32 PRECISION : = 500;
+Function ln(Decimal32 x) Which Returns Decimal32 Does {
+  // Natural logarithm is the integral of 1/x from 1 to x, highschool math.
+  Decimal32 sum : = 0, epsilon : = (x - 1) / (5 * PRECISION), i : = 1;
+  While(epsilon > 0 and i < x) or (epsilon < 0 and i > x) Loop {
+    sum += epsilon / i;
+    i += epsilon;
+  }
+  EndWhile;
+  Return sum;
+}
+EndFunction;
+
+Function log2(Decimal32 x) Which Returns Decimal32 Does {
+  Return ln(x) / ln(2);
+}
+EndFunction;
+
+Character input[32];
+Character output[256];
+
+Function main() Which Returns Nothing Does {
+  clearScreen();
+  Integer16 lengthOfInput : = getLengthOfTheInput(), i : = 0;
+  If NDEBUG = 0 Then {
+    Character stringToBePrinted[64] : = {0};
+    strcat(AddressOf(stringToBePrinted[0]),
+           "NDEBUG: The length of the input is: ");
+    convertIntegerToString(AddressOf(stringToBePrinted[0]) +
+                               strlen(AddressOf(stringToBePrinted[0])),
+                           lengthOfInput);
+    strcat(AddressOf(stringToBePrinted[0]), "\n");
+    printString(AddressOf(stringToBePrinted[0]));
+  }
+  EndIf;
+  While i < lengthOfInput Loop {
+    input[i] : = getCharacterOfTheInput(i);
+    i += 1;
+  }
+  EndWhile;
+  input[lengthOfInput] : = 0;
+
+  If strlen(AddressOf(input[0])) = 0 Then {
+    printString("The input is empty!\n");
+    Return;
+  }
+  EndIf;
+  PointerToTreeNode array[32];
+  Integer16 lengthOfTheArray : = 0;
+i:
+  = 0;
+  While i < lengthOfInput Loop {
+    Integer16 j : = 0, haveWeFoundTheCharacterInTheArray : = 0;
+    While j < lengthOfTheArray Loop {
+      If array[j]->character = input[i] Then {
+      haveWeFoundTheCharacterInTheArray:
+        = 1;
+        array[j]->frequencyOfCharacter += 1;
+      }
+      EndIf;
+      j += 1;
+    }
+    EndWhile;
+    If not(haveWeFoundTheCharacterInTheArray) Then {
+      array[lengthOfTheArray] : = newTreeNode();
+      array[lengthOfTheArray]->character : = input[i];
+      array[lengthOfTheArray]->frequencyOfCharacter : = 1;
+      lengthOfTheArray += 1;
+    }
+    EndIf;
+    i += 1;
+  }
+  EndWhile;
+
+i:
+  = 0;
+  While i < lengthOfTheArray Loop {
+    Character stringToBePrinted[64] : = {0};
+    strcat(AddressOf(stringToBePrinted[0]), "The character '");
+    Integer16 indexOfCharacter : = strlen(AddressOf(stringToBePrinted[0]));
+    stringToBePrinted[indexOfCharacter] : = array[i]->character;
+    stringToBePrinted[indexOfCharacter + 1] : = 0;
+    strcat(AddressOf(stringToBePrinted[0]), "' has the frequency of ");
+    convertIntegerToString(AddressOf(stringToBePrinted[0]) +
+                               strlen(AddressOf(stringToBePrinted[0])),
+                           array[i]->frequencyOfCharacter);
+    strcat(AddressOf(stringToBePrinted[0]), ".\n");
+    printString(AddressOf(stringToBePrinted[0]));
+    i += 1;
+  }
+  EndWhile;
+
+  Decimal32 ShannonEntropy : = 0;
+i:
+  = 0;
+  While i < lengthOfTheArray Loop {
+    ShannonEntropy -=
+        (array[i]->frequencyOfCharacter / Decimal32(lengthOfInput)) *
+        log2(array[i]->frequencyOfCharacter / Decimal32(lengthOfInput));
+    i += 1;
+  }
+  EndWhile;
+  output[0] : = 0;
+  strcat(AddressOf(output[0]), "The Shannon Entropy of the input string is: ");
+  convertDecimalToString(AddressOf(output[0]) + strlen(AddressOf(output[0])),
+                         ShannonEntropy);
+  strcat(AddressOf(output[0]), " bits/symbol.\n");
+  printString(AddressOf(output[0]));
+
+  While lengthOfTheArray > 1 Loop {
+    Integer16 minimum : = 0, secondMinimum : = 0;
+
+    Integer16 i : = 0;
+    If NDEBUG = 0 Then {
+      Character stringToBePrinted[64] : = {0};
+      strcat(AddressOf(stringToBePrinted[0]),
+             "NDEBUG: The length of the array is ");
+      convertIntegerToString(AddressOf(stringToBePrinted[0]) +
+                                 strlen(AddressOf(stringToBePrinted[0])),
+                             lengthOfTheArray);
+      strcat(AddressOf(stringToBePrinted[0]), ".\n");
+      printString(AddressOf(stringToBePrinted[0]));
+    }
+    EndIf;
+    While i < lengthOfTheArray Loop {
+      If NDEBUG = 0 Then {
+        Character stringToBePrinted[64] : = {0};
+        strcat(AddressOf(stringToBePrinted[0]),
+               "NDEBUG: The tree at the index #");
+        convertIntegerToString(AddressOf(stringToBePrinted[0]) +
+                                   strlen(AddressOf(stringToBePrinted[0])),
+                               i);
+        strcat(AddressOf(stringToBePrinted[0]), " is the TreeNode #");
+        convertIntegerToString(AddressOf(stringToBePrinted[0]) +
+                                   strlen(AddressOf(stringToBePrinted[0])),
+                               (array[i] - AddressOf(treeNodes[0])) /
+                                   SizeOf(TreeNode));
+        strcat(AddressOf(stringToBePrinted[0]), ".\n");
+        printString(AddressOf(stringToBePrinted[0]));
+      }
+      EndIf;
+      If not(isTreeNodeWithinBounds(array[i])) Then {
+        segmentationFault();
+        Return;
+      }
+      EndIf;
+      i += 1;
+    }
+    EndWhile;
+
+  i:
+    = 0;
+    While i < lengthOfTheArray Loop {
+      If array[i]->frequencyOfCharacter <
+          array[minimum]->frequencyOfCharacter Then {
+      minimum:
+        = i;
+      }
+      EndIf;
+      i += 1;
+    }
+    EndWhile;
+
+  i:
+    = minimum = 0 ? 1 : 0;
+  secondMinimum:
+    = i;
+    While i < lengthOfTheArray Loop {
+      If array[i]->frequencyOfCharacter <
+              array[secondMinimum]->frequencyOfCharacter and
+          not(i = minimum) Then {
+      secondMinimum:
+        = i;
+      }
+      EndIf;
+      i += 1;
+    }
+    EndWhile;
+
+    If NDEBUG = 0 Then {
+      Character stringToBePrinted[64] : = {0};
+      strcat(AddressOf(stringToBePrinted[0]),
+             "NDEBUG: The minimum and the second minimum are ");
+      convertIntegerToString(AddressOf(stringToBePrinted[0]) +
+                                 strlen(AddressOf(stringToBePrinted[0])),
+                             minimum);
+      strcat(AddressOf(stringToBePrinted[0]), " and ");
+      convertIntegerToString(AddressOf(stringToBePrinted[0]) +
+                                 strlen(AddressOf(stringToBePrinted[0])),
+                             secondMinimum);
+      strcat(AddressOf(stringToBePrinted[0]), ".\n");
+      printString(AddressOf(stringToBePrinted[0]));
+    }
+    EndIf;
+
+    If NDEBUG = 0 Then {
+      Character stringToBePrinted[64] : = {0};
+      strcat(AddressOf(stringToBePrinted[0]), "NDEBUG: Joining the TreeNode #");
+      convertIntegerToString(AddressOf(stringToBePrinted[0]) +
+                                 strlen(AddressOf(stringToBePrinted[0])),
+                             (array[minimum] - AddressOf(treeNodes[0])) /
+                                 SizeOf(TreeNode));
+      strcat(AddressOf(stringToBePrinted[0]), " with the TreeNode #");
+      convertIntegerToString(AddressOf(stringToBePrinted[0]) +
+                                 strlen(AddressOf(stringToBePrinted[0])),
+                             (array[secondMinimum] - AddressOf(treeNodes[0])) /
+                                 SizeOf(TreeNode));
+      strcat(AddressOf(stringToBePrinted[0]), ".\n");
+      printString(AddressOf(stringToBePrinted[0]));
+    }
+    EndIf;
+
+    PointerToTreeNode sumOfTheTwoMostFrequent : = newTreeNode();
+    sumOfTheTwoMostFrequent->frequencyOfCharacter
+        : = array[minimum]->frequencyOfCharacter +
+            array[secondMinimum]->frequencyOfCharacter;
+    sumOfTheTwoMostFrequent->leftChild : = array[minimum];
+    sumOfTheTwoMostFrequent->rightChild : = array[secondMinimum];
+
+    If NDEBUG = 0 Then {
+      Character stringToBePrinted[64] : = {0};
+      strcat(AddressOf(stringToBePrinted[0]),
+             "NDEBUG: The new TreeNode has the frequency of: ");
+      convertIntegerToString(AddressOf(stringToBePrinted[0]) +
+                                 strlen(AddressOf(stringToBePrinted[0])),
+                             sumOfTheTwoMostFrequent->frequencyOfCharacter);
+      strcat(AddressOf(stringToBePrinted[0]), ".\n");
+      printString(AddressOf(stringToBePrinted[0]));
+    }
+    EndIf;
+
+    array[minimum] : = sumOfTheTwoMostFrequent;
+
+  i:
+    = secondMinimum;
+    While i < lengthOfTheArray - 1 Loop {
+      array[i] : = array[i + 1];
+      i += 1;
+    }
+    EndWhile;
+
+    lengthOfTheArray -= 1;
+  }
+  EndWhile;
+
+  If NDEBUG = 0 Then {
+    Character stringToBePrinted[128] : = {0};
+    strcat(AddressOf(stringToBePrinted[0]),
+           "NDEBUG: The frequency of the root node is ");
+    convertIntegerToString(AddressOf(stringToBePrinted[0]) +
+                               strlen(AddressOf(stringToBePrinted[0])),
+                           array[0]->frequencyOfCharacter);
+    strcat(AddressOf(stringToBePrinted[0]),
+           ". If the algorithm is correctly implemented, it should be ");
+    convertIntegerToString(AddressOf(stringToBePrinted[0]) +
+                               strlen(AddressOf(stringToBePrinted[0])),
+                           lengthOfInput);
+    strcat(AddressOf(stringToBePrinted[0]), ".\n");
+    printString(AddressOf(stringToBePrinted[0]));
+  }
+  EndIf;
+
+  assignCode("", array[0]);
+
+  Integer16 lengthOfTheOutput : = 0;
+i:
+  = 0;
+  While i < lengthOfInput Loop {
+    lengthOfTheOutput += strlen(mapOfCodes[input[i]]);
+    i += 1;
+  }
+  EndWhile;
+  output[0] : = 0;
+  strcat(AddressOf(output[0]), "The length of the encoded string is: ");
+  convertIntegerToString(AddressOf(output[0]) + strlen(AddressOf(output[0])),
+                         lengthOfTheOutput);
+  strcat(AddressOf(output[0]), " bits.\n");
+  printString(AddressOf(output[0]));
+
+  output[0] : = 0;
+  strcat(AddressOf(output[0]),
+         "The average length of the symbol in the Huffman code is: ");
+  convertDecimalToString(AddressOf(output[0]) + strlen(AddressOf(output[0])),
+                         Decimal32(lengthOfTheOutput) / lengthOfInput);
+  strcat(AddressOf(output[0]), " bits/symbol.\n");
+  printString(AddressOf(output[0]));
+
+  output[0] : = 0;
+i:
+  = 0;
+  While i < lengthOfInput Loop {
+    strcat(AddressOf(output[0]), mapOfCodes[input[i]]);
+    i += 1;
+  }
+  EndWhile;
+  strcat(AddressOf(output[0]), "\n");
+  printString(AddressOf(output[0]));
+
+  freeUpTheTree(array[0]);
+}
+EndFunction;

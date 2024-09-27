@@ -750,6 +750,7 @@
           </li>
           <li><a href="#Conclusion">Conclusion</a></li>
           <li><a href="#stuxxnet">Stuxxnet's comments</a></li>
+          <li><a href="#dealing_with_trees">Dealing with trees</a></li>
         </ol>
         <b id="aec_logo">Logo</b><br />
         Here is a quick-and-dirty logo I made using GIMP and LibreOffice Calc:
@@ -899,12 +900,32 @@
           something like that simply could not have happened to me. And when
           writing my AEC-to-WebAssembly compiler in C++, C++ has surprised me
           quite a few times, and once made a very hard-to-trace bug (you can
-          read about it in the <a href="#Structures">Structures section</a>).
-          When programming in a programming language you have made, you
-          understand how the tools you are using work, and you have an at least
-          basic understanding how the environment you are targetting works (to
-          make a compiler targetting WebAssembly, you need to have at least
-          basic understanding how modern browsers work), so you are not doing
+          read about it in the <a href="#Structures">Structures section</a>). So
+          has JavaScript surprised me a few times when I was writing my
+          PicoBlaze assembler and emulator in JavaScript. For example, what do
+          you think happens if you pass a string with an invalid number (for
+          example, with a letter inside a decimal number, or a digit bigger than
+          1 in a binary number) to the JavaScript function
+          <span class="inline_code">parseInt</span>? If you have answered that
+          it throws an exception, you are wrong. In fact, it returns
+          <a href="https://en.wikipedia.org/wiki/NaN">a not-a-number</a>. I
+          guess it is because the first versions of JavaScript didn't have
+          exceptions, but I suppose they did have
+          <span class="inline_code">parseInt</span>, which had to signal error
+          somehow differently, so that weird way of signalling an error was kept
+          because of compatibility. Wrongly thinking it throws an exception
+          <a
+            href="https://github.com/FlatAssembler/PicoBlaze_Simulator_in_JS/issues/27"
+            >caused my assembler to fail silently in case somebody writes an
+            invalid decimal or binary number</a
+          >. Had I written the assembler in my programming language, such a bug
+          would be impossible, because I would know how the equivalent of
+          <span class="inline_code">parseInt</span> signals an error. When
+          programming in a programming language you have made, you understand
+          how the tools you are using work, and you have an at least basic
+          understanding how the environment you are targetting works (to make a
+          compiler targetting WebAssembly, you need to have at least basic
+          understanding how modern browsers work), so you are not doing
           bloodletting. WebAssembly is designed to be an exceptionally easy
           target for compilers, so now you can easily program in a programming
           language you have made and make the programs you have written in it
@@ -1977,10 +1998,20 @@ EndFunction</pre
         converting to the boolean type in the if-conditions, which is an
         interesting solution, but it often makes the code longer, as well as not
         addressing the fact that the same problem can happen with boolean
-        variables. So, I think that making
-        <span class="inline_code">:=</span> the assignment operator and
-        <span class="inline_code">=</span> the equality-testing operator is a
-        good choice. The AEC-to-WebAssembly compiler allows whitespace between
+        variables (<i
+          >UPDATE on 05/06/2024:
+          <a href="https://github.com/FlatAssembler/AECforWebAssembly/issues/21"
+            >One hard-to-trace bug in my AEC-to-WebAssembly compiler</a
+          >, causing my compiler to lose track of the sizes of the structures
+          and cause an internal compiler error, was caused by mismatched
+          parentheses, which C++ compiler didn't complain about, but instead it
+          implicitly casted an integer into boolean. Had I written my compiler
+          in Java or C#, rather than in C++, something like that couldn't have
+          happened to me.</i
+        >). So, I think that making <span class="inline_code">:=</span> the
+        assignment operator and <span class="inline_code">=</span> the
+        equality-testing operator is a good choice. The AEC-to-WebAssembly
+        compiler allows whitespace between
         <span class="inline_code">:</span> and
         <span class="inline_code">=</span> in the assignment operator
         <span class="inline_code">:=</span>, so that, when
@@ -2194,6 +2225,32 @@ EndFunction
         doesn't seem to be such a simple solution (of using a local temporary
         variable) to the problem with chained comparisons.
         <br />
+        UPDATE on 03/05/2024: Here is
+        <a
+          href="https://github.com/FlatAssembler/AECforWebAssembly/blob/master/chainedComparisonWithSideEffects/chainedComparisonWithSideEffects.aec"
+          >an example program that illustrates the problem with chained
+          comparisons as they are currently implemented in AEC</a
+        >:
+        <pre>
+#target WASI
+
+Integer16 counter := 0;
+
+Function b() Which Returns Integer32 Does
+	counter += 1;
+	Return counter;
+EndFunction
+
+Function test() Which Returns Integer32 Does
+	// By common sense, this should return 1. However, because of the
+	// current AEC semantics, this returns 2.
+	counter := 0;
+	Integer16 a := 0, c := 2;
+	Integer16 resultOfComparison := a &lt;= b() &lt;= c;
+	Return counter;
+EndFunction
+	</pre
+        >
         <del
           ><b>TODO</b>: Implement a less-than-or-equal-to operator
           <span class="inline_code">&lt;=</span> and a greater-than-or-equal-to
@@ -2202,6 +2259,15 @@ EndFunction
         >
         (UPDATE on 29/04/2024: They have been implemented and they will be
         available in the release v2.9.0.)<br />
+        <b>UPDATE</b> on 22/09/2024: I've received some comments on Internet
+        forums telling me that the <i>scanning backwards</i> method of parsing
+        right-associative operators (as I was doing both in my PicoBlaze
+        assembler and in my AEC-to-WebAssembly compiler, but not in my
+        AEC-to-x86 compiler) is considered to be an anti-pattern. So, I've
+        opened
+        <a href="https://langdev.stackexchange.com/q/4071/330"
+          >a StackExchange question about that</a
+        >, which received many upvotes.<br />
         <br /><b id="Branching">Branching</b><br />
         Branching is supported only via <span class="inline_code">If</span>,
         <span class="inline_code">If</span>-<span class="inline_code">Else</span
@@ -2864,6 +2930,14 @@ InstantiateStructure QuadraticEquationSolution solution[1 * 2 * 3];
         <a
           href="https://github.com/FlatAssembler/AECforWebAssembly/commit/8747e0ef33238ab3a598e187da6c0b490bafbc31"
           >relatively simple fix</a
+        >.<br />
+        <b>UPDATE</b> on 05/05/2024: There seems to be a bug in the
+        AEC-to-WebAssembly compiler which is triggered under certain conditions
+        (apparently, only when compiled using Microsoft C++ Compiler) when
+        comparing two structures using the
+        <span class="inline_code">=</span> operator. You can read more about it
+        <a href="https://github.com/FlatAssembler/AECforWebAssembly/issues/20"
+          >on GitHub</a
         >.
         <br />
         <br /><b id="Assembly">Inline assembly</b><br />
@@ -3473,7 +3547,93 @@ EndFunction</pre
           <span class="inline_code">EndWhile</span>,
           <span class="inline_code">EndFunction</span> and
           <span class="inline_code">EndStructure</span></a
-        >, and that question got many upvotes.
+        >, and that question got many upvotes.<br /><br />
+        <b id="dealing_with_trees">UPDATE</b> on 24/05/2024: A question I often
+        ask myself is what is the proper way of dealing with algorithms that
+        involve tree manipulation in languages such as AEC. Well, here is how I
+        solved that problem in
+        <a href="HuffmanCodingInAEC.html">Huffman Coding</a>:
+        <pre>
+Structure TreeNode Consists Of {
+  Character character;
+  Integer16 frequencyOfCharacter;
+  PointerToTreeNode leftChild, rightChild;
+  Character code[16];
+}
+EndStructure;
+
+InstantiateStructure TreeNode treeNodes[32];
+Integer16 isTreeNodeUsed[32];
+
+Function newTreeNode() Which Returns PointerToTreeNode Does {
+  Integer16 i : = 0;
+  While i &lt; 32 Loop {
+    If not(isTreeNodeUsed[i]) Then {
+      treeNodes[i].character : = 0;
+      treeNodes[i].leftChild : = treeNodes[i].rightChild
+          : = PointerToTreeNode(0);
+      treeNodes[i].code[0] : = 0;
+      treeNodes[i].frequencyOfCharacter : = 0;
+      isTreeNodeUsed[i] : = 1;
+      If NDEBUG = 0 Then {
+        Character stringToBePrinted[64] : = {0};
+        strcat(AddressOf(stringToBePrinted[0]),
+               "NDEBUG: Allocating the TreeNode #");
+        convertIntegerToString(AddressOf(stringToBePrinted[0]) +
+                                   strlen(AddressOf(stringToBePrinted[0])),
+                               i);
+        strcat(AddressOf(stringToBePrinted[0]), "\n");
+        printString(AddressOf(stringToBePrinted[0]));
+      }
+      EndIf;
+      Return AddressOf(treeNodes[i]);
+    }
+    EndIf;
+    i += 1;
+  }
+  EndWhile;
+  noMoreFreeMemory();
+}
+EndFunction;
+
+Function freeTreeNode(PointerToTreeNode treeNode) Which Returns Nothing Does {
+  If not(AddressOf(treeNodes[0]) &lt;= treeNode &lt;= AddressOf(treeNodes[32 - 1]))
+      Then {
+    segmentationFault();
+  }
+  EndIf;
+  If NDEBUG = 0 Then {
+    Character stringToBePrinted[64] : = {0};
+    strcat(AddressOf(stringToBePrinted[0]), "NDEBUG: Freeing the TreeNode #");
+    convertIntegerToString(AddressOf(stringToBePrinted[0]) +
+                               strlen(AddressOf(stringToBePrinted[0])),
+                           (treeNode - AddressOf(treeNodes[0])) /
+                               SizeOf(TreeNode));
+    strcat(AddressOf(stringToBePrinted[0]), "\n");
+    printString(AddressOf(stringToBePrinted[0]));
+  }
+  EndIf;
+  isTreeNodeUsed[(treeNode - AddressOf(treeNodes[0])) / SizeOf(TreeNode)] : = 0;
+}
+EndFunction;
+
+Function freeUpTheTree(PointerToTreeNode tree) Which Returns Nothing Does {
+  If tree-&gt;leftChild Then {
+    freeUpTheTree(tree-&gt;leftChild); // Calling `freeTreeNode` here instead of
+                                    // `freeUpTheTree` causes a memory leak.
+  }
+  EndIf;
+  If tree-&gt;rightChild Then { freeUpTheTree(tree-&gt;rightChild); }
+  EndIf;
+  freeTreeNode(tree);
+}
+EndFunction;
+  </pre
+        >
+        So, in other words, I think you should make a global array of TreeNode
+        structures, and make another array to track which elements of that array
+        are actually being used and which ones aren't. And write functions which
+        allow you to allocate a TreeNode and deallocate a TreeNode.
       </div>
       <script type="text/javascript">
         function highlightedToken(token) {

@@ -13,7 +13,12 @@
 
 #include "bitManipulations.cpp"
 #include "semanticAnalyzer.cpp"
-#include <ciso646> // Necessary for Microsoft C++ Compiler.
+#include <ciso646> // Necessary for Microsoft C++ Compiler (for `and` and `or`).
+
+const char *throwNotImplementedException(std::string message) {
+  throw new NotImplementedException(message);
+  return NULL;
+}
 
 AssemblyCode convertToInteger32(
     const TreeNode &
@@ -223,7 +228,7 @@ AssemblyCode convertTo(const TreeNode &node, const std::string &type,
 }
 
 AssemblyCode TreeNode::compile(CompilationContext context) const {
-  std::string typeOfTheCurrentNode = getType(context);
+  const std::string typeOfTheCurrentNode = getType(context);
   AssemblyCode::AssemblyType returnType;
   if (isPointerType(typeOfTheCurrentNode))
     returnType = AssemblyCode::AssemblyType::i32;
@@ -752,7 +757,7 @@ AssemblyCode TreeNode::compile(CompilationContext context) const {
       } else if (childNode.text == ":=" &&
                  context.structureSizes.count(
                      childNode.getType(context))) { // Structure assignments.
-        std::string structureName = childNode.getType(context);
+        const std::string structureName = childNode.getType(context);
         TreeNode fakeInnerFunctionNode(
             "Does", childNode.lineNumber,
             childNode
@@ -1374,9 +1379,12 @@ AssemblyCode TreeNode::compile(CompilationContext context) const {
           << "\", will be evaluated twice, possibly leading to unintended side "
              "effects. I am sorry about that, but, thus far, there does not "
              "seem to be a simple solution given the way the compiler is "
-             "structured."
+             "structured. I've started a StackExchange thread about that "
+             "problem: https://langdev.stackexchange.com/q/3755/330"
           << std::endl;
-      return andNode.compile(context);
+      return ";;Chained comparison, converting " + getLispExpression() +
+             " to " + andNode.getLispExpression() + "\n" +
+             andNode.compile(context);
     }
     std::string firstType = children.at(0).getType(context);
     std::string secondType = children.at(1).getType(context);
@@ -1397,7 +1405,10 @@ AssemblyCode TreeNode::compile(CompilationContext context) const {
           (text == "<"    ? ".lt_s\n"
            : text == ">"  ? ".gt_s\n"
            : text == "<=" ? ".le_s\n"
-                          : ".ge_s\n") +
+           : text == ">=" ? ".ge_s\n"
+                          : throwNotImplementedException(
+                                "The comparison operator `" + text +
+                                "` is not implemeneted!")) +
           convertTo(children[0], strongerType, context).indentBy(1) + "\n" +
           convertTo(children[1], strongerType, context).indentBy(1) + "\n)";
     else // If we are comparing decimal (floating-point) numbers, rather than
@@ -1407,11 +1418,16 @@ AssemblyCode TreeNode::compile(CompilationContext context) const {
           (text == "<"    ? ".lt\n"
            : text == ">"  ? ".gt\n"
            : text == "<=" ? ".le\n"
-                          : ".ge\n") +
+           : text == ">=" ? ".ge\n"
+                          : throwNotImplementedException(
+                                "The comparison operator `" + text +
+                                "` is not implemeneted!")) +
           convertTo(children[0], strongerType, context).indentBy(1) + "\n" +
           convertTo(children[1], strongerType, context).indentBy(1) + "\n)";
   } else if (text == "=" &&
              context.structureSizes.count(children.at(0).getType(context))) {
+    // I am guessing that there is a bug somewhere in the following lines:
+    // https://github.com/FlatAssembler/AECforWebAssembly/issues/20
     if (children[0].getType(context) != children.at(1).getType(context))
       std::cerr
           << "Line " << lineNumber << ", Column " << columnNumber
@@ -1741,14 +1757,26 @@ TreeNode::compileAPointer(const CompilationContext &context) const {
                 << std::endl;
       exit(1);
     }
+    const std::string typeOfTheCurrentNode = getType(context);
+    if (not(isPointerType(typeOfTheCurrentNode)) and
+        not(basicDataTypeSizes.count(typeOfTheCurrentNode)) and
+        not(context.structureSizes.count(typeOfTheCurrentNode))) {
+      std::cerr << "Line " << lineNumber << ", Column " << columnNumber
+                << ", Internal compiler error: The compiler has apparently "
+                   "lost the track of the size of the structure named `"
+                << typeOfTheCurrentNode << "`!" << std::endl;
+      throw CorruptCompilationContextException(context);
+    }
     return AssemblyCode(
         "(i32.add\n\t(i32.sub\n\t\t(global.get "
         "$stack_pointer)\n\t\t(i32.const " +
             std::to_string(context.localVariables.at(text)) + ") ;;" + text +
             "\n\t)\n\t(i32.mul\n\t\t(i32.const " +
-            std::to_string(basicDataTypeSizes.count(getType(context))
-                               ? basicDataTypeSizes.at(getType(context))
-                               : context.structureSizes.at(getType(context))) +
+            std::to_string(
+                isPointerType(typeOfTheCurrentNode) ? 4
+                : basicDataTypeSizes.count(typeOfTheCurrentNode)
+                    ? basicDataTypeSizes.at(typeOfTheCurrentNode)
+                    : context.structureSizes.at(typeOfTheCurrentNode)) +
             ")\n" +
             std::string(convertToInteger32(children[0], context).indentBy(2)) +
             "\n\t)\n)",

@@ -265,8 +265,8 @@ std::vector<TreeNode> TreeNode::parseExpression(std::vector<TreeNode> input) {
       parsedExpression[openCurlyBrace].text = "{}";
     }
   for (int i = parsedExpression.size() - 1; i >= 0;
-       i--) // The unary "-" operator.
-    if (parsedExpression[i].text == "-" and
+       i--) // The unary "+" and "-" operators.
+    if ((parsedExpression[i].text == "-" or parsedExpression[i].text == "+") and
         i != int(parsedExpression.size()) - 1 and
         parsedExpression[i].children.size() == 0 and
         (!i or (!isComposedOfAlnumsAndOneDot(parsedExpression[i - 1].text) and
@@ -662,7 +662,7 @@ std::vector<TreeNode> TreeNode::parse(std::vector<TreeNode> input) {
         std::cerr << "Line " << condition[1].lineNumber << ", Column "
                   << condition[1].columnNumber
                   << ", Parser error: Unexpected token \"" << condition[1].text
-                  << "\"" << std::endl;
+                  << "\"!" << std::endl;
       input[i].children.push_back(condition[0]);
       if (iteratorPointingToTheLoopToken ==
           input.end()) // If there is no "Loop" token...
@@ -719,7 +719,7 @@ std::vector<TreeNode> TreeNode::parse(std::vector<TreeNode> input) {
         std::cerr << "Line " << expression[1].lineNumber << ", Column "
                   << expression[1].columnNumber
                   << ", Parser error: Unexpected token \"" << expression[1].text
-                  << "\"" << std::endl;
+                  << "\"!" << std::endl;
       if (expression.size())
         input[i].children.push_back(
             expression.at(0)); // The function can return nothing at all, the
